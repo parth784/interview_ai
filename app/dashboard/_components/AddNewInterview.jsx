@@ -9,7 +9,14 @@ import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import { styled } from '@mui/material/styles';
 import { useState } from 'react';
+import CircularProgress from '@mui/material/CircularProgress';
 import { chatSession, ChatSession } from '../../../utils/GeminiAIModel'
+import {db}  from '../../../utils/db'
+import { MockInterview } from '../../../utils/schema';
+import {v4 as uuidv4} from 'uuid';
+import { useUser } from '@clerk/nextjs';
+import moment from 'moment';
+import { useRouter } from 'next/router';
 const CustomDialogTitle = styled(DialogTitle)(({ theme }) => ({
   fontSize: '1.5rem',
   fontWeight: 'bold',
@@ -33,6 +40,10 @@ const AddNewInterview = () => {
   const [jobPosition,setJobPositoin] = useState();
   const [jobDesc, setJobDesc] = useState();
   const [jobExperience,setJobExperience] = useState();
+  const [loading,setLoading] = useState(false);
+  const [jsonResponse,setJsonResponse] = useState()
+  const router = useRouter()
+  const {user} = useUser();
   const handleClickOpen = () => {
     setOpen(true);
   };
@@ -41,12 +52,37 @@ const AddNewInterview = () => {
     setOpen(false);
   };
   const handleSubmit = async (event)=>{
+    setLoading(true)
     console.log(jobPosition,jobDesc,jobExperience)
     const InputPromt = "Job position :"+jobPosition+",Job Description:"+jobDesc+"Years of Experience:"+jobExperience+",DEpending on Job Position,Job DEscription & Year of Experience give us"+process.env.NEXT_PUBLIC_INTERVIEW_QUESITON_COUNT+"interview question along with Answer in Json Format, Give us quesion and answer feild on Json"
     console.log(chatSession)
     const result = await chatSession.sendMessage(InputPromt);
-    console.log(result.response.text())
+    const MockJsonResp = (result.response.text()).replace('```json','').replace('```','')
+    console.log(MockJsonResp)
+    console.log(JSON.parse(MockJsonResp))
+    setJsonResponse(MockJsonResp)
+    if(MockJsonResp){
+    const resp = await db.insert(MockInterview).values(
+      {
+        mockId:uuidv4(),
+        jsonMockResp:MockJsonResp,
+        jobPosition:jobPosition,
+        jobDesc:jobDesc,
+        jobExperience:jobExperience,
+        createdBy:user?.primaryEmailAddress?.emailAddress,
+        createdAt:moment().format('DD-MM-yyyy')
+      }
+    ).returning({mockId:MockInterview.mockId})
+    console.log("Inserted Id", resp)
+    if(resp){
+      setOpen(false)
+      router.push('/dashboard/interview'+resp[0]?.mockId)
+    }
+  }else{
+    console.log("ERROR")
     
+  }
+    setLoading(false)
   }
 
   return (
@@ -97,7 +133,10 @@ const AddNewInterview = () => {
         </CustomDialogContent>
         <DialogActions>
           <Button onClick={handleClose}>Cancel</Button>
-          <GreenButton onClick={handleSubmit}>Start Interview</GreenButton>
+          <GreenButton disabled={loading} onClick={handleSubmit}>{
+            loading?
+            <><CircularProgress/>'Generating from AI'</>:'Start Interview'
+          }</GreenButton>
         </DialogActions>
       </Dialog>
     </div>

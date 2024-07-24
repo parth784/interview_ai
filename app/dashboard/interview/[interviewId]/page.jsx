@@ -6,6 +6,7 @@ import { MockInterview } from '../../../../utils/schema'
 import { Lightbulb, WebcamIcon } from 'lucide-react'
 import Webcam from 'react-webcam'
 import { Button } from '@mui/material'
+import Link from 'next/link'
 
 const Interview = ({params}) => {
     const [interviewData,setInterviewData] = useState()
@@ -52,7 +53,9 @@ const GetInterviewDetails = async ()=>{
       </div>
       </div>  
       <div className='flex justify-end items-end'>
+      <Link href={'/dashboard/interview/'+params.interviewId+'/start'}>
       <Button  style={{backgroundColor:"blue",color: "white"}}>Start Interview</Button>
+      </Link>
       </div>
     </div>
   )
